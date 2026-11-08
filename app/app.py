@@ -34,8 +34,12 @@ def load_servers():
         return {s["id"]: s for s in json.load(f)["servers"]}
 
 
-def create_app(server):
-    """Cria a aplicação Flask para uma instância específica."""
+def create_app(server, delay_ms=0):
+    """Cria a aplicação Flask para uma instância específica.
+
+    delay_ms: latência artificial somada a cada resposta (exceto /health),
+    usada para simular um servidor mais lento nos testes de carga.
+    """
     app = Flask(__name__)
 
     started_at = time.time()
@@ -52,6 +56,12 @@ def create_app(server):
             "hostname": socket.gethostname(),
             "pid": os.getpid(),
         }
+
+    @app.before_request
+    def artificial_delay():
+        """Simula um servidor lento (--delay-ms). /health e /slow ficam de fora."""
+        if delay_ms > 0 and request.path not in ("/health", "/slow"):
+            time.sleep(delay_ms / 1000)
 
     @app.route("/")
     def index():
@@ -80,6 +90,7 @@ def create_app(server):
             **identity(),
             total_requests=total,
             uptime_seconds=int(time.time() - started_at),
+            delay_ms=delay_ms,
         )
 
     @app.route("/slow")
@@ -125,6 +136,12 @@ def parse_args():
         default=os.environ.get("HOST"),
         help="Endereço de escuta (padrão: o definido em config/servers.json)",
     )
+    parser.add_argument(
+        "--delay-ms",
+        type=int,
+        default=int(os.environ.get("DELAY_MS", 0)),
+        help="Latência artificial por resposta, em ms (padrão: 0)",
+    )
     return parser.parse_args()
 
 
@@ -141,8 +158,9 @@ def main():
         server["port"] = int(args.port)
     host = args.host or server["host"]
 
-    app = create_app(server)
-    print(f"{server['name']} (ID {server['id']}) em http://{host}:{server['port']}")
+    app = create_app(server, delay_ms=max(args.delay_ms, 0))
+    extra = f" (latência artificial: {args.delay_ms} ms)" if args.delay_ms > 0 else ""
+    print(f"{server['name']} (ID {server['id']}) em http://{host}:{server['port']}{extra}")
     app.run(host=host, port=server["port"], debug=False, threaded=True)
 
 

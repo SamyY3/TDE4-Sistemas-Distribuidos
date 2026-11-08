@@ -22,7 +22,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR.parent / "config" / "servers.json"
@@ -81,6 +81,20 @@ def create_app(server):
             total_requests=total,
             uptime_seconds=int(time.time() - started_at),
         )
+
+    @app.route("/slow")
+    def slow():
+        """Resposta lenta (?s=segundos, máx. 30).
+
+        Mantém uma conexão aberta no servidor, o que permite demonstrar a
+        diferença entre Round Robin e Least Connections.
+        """
+        try:
+            seconds = min(max(float(request.args.get("s", 2)), 0), 30)
+        except ValueError:
+            seconds = 2.0
+        time.sleep(seconds)
+        return jsonify(**identity(), slept_seconds=seconds)
 
     @app.after_request
     def add_server_header(response):

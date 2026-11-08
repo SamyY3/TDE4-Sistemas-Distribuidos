@@ -1,0 +1,25 @@
+{
+  "servers": [
+    {
+      "id": 1,
+      "name": "Servidor 1",
+      "host": "127.0.0.1",
+      "port": 5001,
+      "color": "#2563eb"
+    },
+    {
+      "id": 2,
+      "name": "Servidor 2",
+      "host": "127.0.0.1",
+      "port": 5002,
+      "color": "#16a34a"
+    },
+    {
+      "id": 3,
+      "name": "Servidor 3",
+      "host": "127.0.0.1",
+      "port": 5003,
+      "color": "#d97706"
+    }
+  ]
+}

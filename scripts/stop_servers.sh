@@ -5,5 +5,5 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 for id in 1 2 3; do
-  "$ROOT/scripts/server_ctl.sh" stop "$id"
+  bash "$ROOT/scripts/server_ctl.sh" stop "$id"
 done

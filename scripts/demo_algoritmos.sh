@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Demonstra Round Robin e Least Connections pelo balanceador.
-# Uso: scripts/demo_algoritmos.sh [URL]   (padrão: http://127.0.0.1:8080)
+# Uso: bash scripts/demo_algoritmos.sh [URL]   (padrão: http://127.0.0.1:8080)
 #
 # Para cada algoritmo, faz dois testes:
 #   A) 9 requisições em sequência: mostra a ordem dos servidores.
@@ -8,11 +8,19 @@
 #      requisições rápidas: mostra quantas o servidor ocupado recebeu.
 #      Round Robin ignora a ocupação; Least Connections evita o servidor ocupado.
 set -u
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-URL="${1:-http://127.0.0.1:8080}"
+URL="${1:-$URL}"
 N=9
 SEQ=()
+
+if ! curl -s --max-time 5 -o /dev/null "$URL/health"; then
+  echo "ERRO: balanceador não responde em $URL. Inicie com scripts/start_servers.sh e scripts/start_nginx.sh" >&2
+  exit 1
+fi
+if ! all_servers_up; then
+  echo "AVISO: nem todas as 3 instâncias respondem; a demonstração só faz sentido com as 3 no ar." >&2
+fi
 
 # Envia $1 requisições rápidas e guarda em SEQ o ID do servidor de cada resposta.
 fast_requests() {
@@ -36,7 +44,7 @@ for algo in round_robin least_conn; do
   echo "=============================================="
   echo " ALGORITMO: $algo"
   echo "=============================================="
-  "$ROOT/scripts/set_algorithm.sh" "$algo" | sed 's/^/  /'
+  bash "$ROOT/scripts/set_algorithm.sh" "$algo" | sed 's/^/  /'
   sleep 1
 
   echo

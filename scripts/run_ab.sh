@@ -22,6 +22,7 @@ CASOS="${CASOS:-100:10 1000:50 5000:100}"
 ALGOS="${ALGOS:-round_robin least_conn}"
 CAMINHO="${CAMINHO:-/}"
 TAG="${TAG:+_$TAG}"
+AVISOS=0
 
 if ! command -v ab >/dev/null 2>&1; then
   echo "ERRO: 'ab' não encontrado. Instale com: sudo apt install apache2-utils" >&2
@@ -31,13 +32,18 @@ if ! curl -s --max-time 5 -o /dev/null "$URL/health"; then
   echo "ERRO: balanceador não responde em $URL. Inicie com scripts/start_servers.sh e scripts/start_nginx.sh" >&2
   exit 1
 fi
+if ! all_servers_up; then
+  echo "ERRO: nem todas as 3 instâncias respondem (portas 5001-5003). Rode scripts/start_servers.sh;" >&2
+  echo "      testar com instâncias faltando falsearia a comparação entre os algoritmos." >&2
+  exit 1
+fi
 
 mkdir -p "$RESULTS/ab"
 CSV="$RESULTS/resumo_ab$TAG.csv"
 echo "algoritmo,requisicoes,concorrencia,req_por_seg,tempo_medio_ms,p95_ms,falhas,nao_2xx,servidor1,servidor2,servidor3" >"$CSV"
 
 for algo in $ALGOS; do
-  "$ROOT/scripts/set_algorithm.sh" "$algo" | sed 's/^/  /'
+  bash "$ROOT/scripts/set_algorithm.sh" "$algo" | sed 's/^/  /'
   sleep 1
 
   for caso in $CASOS; do
@@ -52,15 +58,37 @@ for algo in $ALGOS; do
     echo "  [$algo] ab -n $n -c $c $URL$CAMINHO"
     # -l: aceita respostas de tamanho variável (a página muda a cada requisição)
     ab -l -n "$n" -c "$c" "$URL$CAMINHO" >"$raw" 2>&1
+    ab_status=$?
 
     read -r rps tmean p95 failed non2xx < <(parse_ab "$raw")
 
+    if [ "$ab_status" != 0 ] || [ "$rps" = NA ]; then
+      echo "    AVISO: o ab terminou com erro (código $ab_status). Veja $raw" >&2
+      AVISOS=$((AVISOS + 1))
+    fi
+    if [ "$failed" != 0 ] && [ "$failed" != NA ]; then
+      echo "    AVISO: $failed requisição(ões) falhada(s) segundo o ab." >&2
+      AVISOS=$((AVISOS + 1))
+    fi
+    if [ "$non2xx" != 0 ]; then
+      echo "    AVISO: $non2xx resposta(s) fora da faixa 2xx." >&2
+      AVISOS=$((AVISOS + 1))
+    fi
+
     s1=NA s2=NA s3=NA
     if [ -f "$ACCESS_LOG" ]; then
-      slice=$(tail -n +"$((before + 1))" "$ACCESS_LOG")
-      s1=$(printf '%s\n' "$slice" | grep -c 'servidor=1')
-      s2=$(printf '%s\n' "$slice" | grep -c 'servidor=2')
-      s3=$(printf '%s\n' "$slice" | grep -c 'servidor=3')
+      # O Nginx grava a linha do log depois de enviar a resposta: pode haver um
+      # pequeno atraso entre o fim do ab e a última linha. Espera (até ~5 s) as N linhas.
+      for _ in $(seq 1 25); do
+        [ $(($(wc -l <"$ACCESS_LOG") - before)) -ge "$n" ] && break
+        sleep 0.2
+      done
+      read -r s1 s2 s3 < <(tail -n +"$((before + 1))" "$ACCESS_LOG" | head -n "$n" | count_by_server)
+      soma=$((s1 + s2 + s3))
+      if [ "$soma" != "$n" ]; then
+        echo "    AVISO: o log registrou $soma de $n requisições; a distribuição por servidor está incompleta." >&2
+        AVISOS=$((AVISOS + 1))
+      fi
     fi
 
     echo "$algo,$n,$c,$rps,$tmean,$p95,$failed,$non2xx,$s1,$s2,$s3" >>"$CSV"
@@ -84,3 +112,7 @@ awk -F, 'NR > 1 { k = $2 " req / " $3 " conc"; v[$1, k] = $4; keys[k] = 1 }
   }' "$CSV" | sort -n
 echo
 echo "Arquivos brutos do ab em: $RESULTS/ab/"
+if [ "$AVISOS" -gt 0 ]; then
+  echo "ATENÇÃO: $AVISOS aviso(s) durante os testes (veja as mensagens acima). Confira antes de usar os números."
+  exit 2
+fi

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ server_name }} · Balanceador de Carga</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <style>:root { --accent: {{ color }}; }</style>
+  <style>:root { --server-accent: {{ color }}; }</style>
 </head>
 <body>
   <header class="topbar">
@@ -15,14 +15,13 @@
 
   <main class="container">
     <section class="hero">
-      <p class="eyebrow">Você foi atendido por</p>
+      <p class="eyebrow">Instância em operação</p>
       <h1>{{ server_name }}</h1>
       <p class="subtitle">
-        Esta página é servida por uma instância independente da aplicação.
-        Quando o balanceador estiver ativo, cada requisição poderá ser
-        direcionada para um servidor diferente.
+        Esta instância faz parte do cluster de aplicação. As requisições são
+        distribuídas pelo Nginx entre os servidores disponíveis.
       </p>
-      <a class="button" href="{{ url_for('index') }}">Nova requisição</a>
+      <a class="button" href="{{ url_for('index') }}">Atualizar painel</a>
     </section>
 
     <section class="cards">
@@ -45,7 +44,7 @@
     </section>
 
     <section class="details">
-      <h2>Detalhes da instância</h2>
+      <h2>Informações da instância</h2>
       <dl>
         <dt>Host</dt><dd>{{ hostname }}</dd>
         <dt>PID do processo</dt><dd>{{ pid }}</dd>

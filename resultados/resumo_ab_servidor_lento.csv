@@ -1,0 +1,7 @@
+algoritmo,requisicoes,concorrencia,req_por_seg,tempo_medio_ms,p95_ms,falhas,nao_2xx,servidor1,servidor2,servidor3
+round_robin,100,10,175.74,56.903,106,0,0,34,33,33
+round_robin,1000,50,1055.77,47.359,113,0,0,333,334,333
+round_robin,5000,100,1146.73,87.204,165,0,0,1667,1666,1667
+least_conn,100,10,460.70,21.706,103,0,0,5,50,45
+least_conn,1000,50,1003.77,49.812,117,0,0,128,437,435
+least_conn,5000,100,979.37,102.106,181,0,0,965,2015,2020

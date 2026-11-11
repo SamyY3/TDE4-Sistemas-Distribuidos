@@ -1,0 +1,28 @@
+==============================================
+ ALGORITMO: round_robin
+==============================================
+  Algoritmo ativo: round_robin
+  Nginx recarregado.
+
+ Teste A - 9 requisições em sequência:
+   Ordem dos servidores: 1 2 3 1 2 3 1 2 3
+
+ Teste B - um servidor ocupado + 9 requisições rápidas:
+   Servidor ocupado (atendendo /slow): 1
+   Ordem dos servidores nas rápidas:   2 3 1 2 3 1 2 3 1
+   Rápidas enviadas ao servidor ocupado: 3 de 9
+
+==============================================
+ ALGORITMO: least_conn
+==============================================
+  Algoritmo ativo: least_conn
+  Nginx recarregado.
+
+ Teste A - 9 requisições em sequência:
+   Ordem dos servidores: 1 2 3 1 2 3 1 2 3
+
+ Teste B - um servidor ocupado + 9 requisições rápidas:
+   Servidor ocupado (atendendo /slow): 1
+   Ordem dos servidores nas rápidas:   2 3 2 3 2 3 2 3 2
+   Rápidas enviadas ao servidor ocupado: 0 de 9
+
